@@ -25,11 +25,12 @@ logger = logging.getLogger(__main__.__name__)
 
 class S3(object):
 
-    def __init__(self, bucket, region="us-east-1", noop=False):
+    def __init__(self, bucket, region="us-east-1", key_prefix=None, noop=False):
         """Setup the S3 storage backend with the bucket we will use and
            optional region."""
         self.conn = boto.s3.connect_to_region(region)
         self.bucket = bucket
+        self.key_prefix = key_prefix
         self.noop = noop
 
         b = self.conn.lookup(self.bucket)
@@ -41,11 +42,16 @@ class S3(object):
 
     def list(self, prefix=""):
         """Return all keys in this bucket."""
+        prefix = prefix or ""
+        if self.key_prefix:
+            prefix = self.key_prefix + "/" + prefix
         for i in self.__b.list(prefix):
             yield i.key
 
     def get(self, src):
         """Return the contents of src from S3 as a string."""
+        if self.key_prefix:
+            src = self.key_prefix + "/" + src
         if self.__b.get_key(src) is None:
             return None
 
@@ -56,6 +62,8 @@ class S3(object):
     def put(self, dst, data):
         """Store the contents of the string data at a key named by dst
            in S3."""
+        if self.key_prefix:
+            dst = self.key_prefix + "/" + dst
 
         if self.noop:
             logger.info("No-Op Put: %s" % dst)
@@ -66,6 +74,8 @@ class S3(object):
 
     def delete(self, src):
         """Delete the object in S3 referenced by the key name src."""
+        if self.key_prefix:
+            src = self.key_prefix + "/" + src
 
         if self.noop:
             logger.info("No-Op Delete: %s" % src)
